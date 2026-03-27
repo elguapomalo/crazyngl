@@ -1,8 +1,3 @@
-# ===================================================================
-# SCRIPT DI DEPLOYMENT UNICO E AUTOMATICO
-# Gestisce l'elevazione dei privilegi, il download e l'installazione.
-# ===================================================================
-
 # --- Configurazione Globale ---
 $ErrorActionPreference = 'Stop' # Interrompe lo script in caso di errore
 
@@ -52,6 +47,8 @@ try {
         $destPath = Join-Path $destDir $file
         Write-Host "  -> Scarico $file..."
         Invoke-WebRequest -Uri ($baseUrl + $file) -OutFile $destPath -UseBasicParsing
+        Write-Host "     Rimuovo i metadati di sicurezza (Unblock)..."
+        Unblock-File -Path $destPath
     }
     Write-Host "Download completato." -ForegroundColor Green
 
