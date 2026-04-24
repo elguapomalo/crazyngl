@@ -1,42 +1,40 @@
 import sys
 import time
-import msvcrt
+from pynput import keyboard
 
 def main():
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <seconds>", file=sys.stderr)
         sys.exit(1)
-    
+
     duration = int(sys.argv[1])
     logged = []
-    print(f"--- Inizio cattura per {duration} secondi ---")
+
+    # Funzione chiamata ad ogni pressione di tasto
+    def on_press(key):
+        try:
+            # Tasti alfanumerici
+            logged.append(key.char)
+        except AttributeError:
+            # Tasti speciali (Space, Enter, etc.)
+            if key == keyboard.Key.space:
+                logged.append(" ")
+            elif key == keyboard.Key.enter:
+                logged.append("\n")
+            else:
+                logged.append(f"[{key}]")
+
+    # Avvia il listener in background
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
+    print(f"--- Monitoraggio globale attivo per {duration} secondi ---")
+    time.sleep(duration)
     
-    start = time.time()
-    while time.time() - start < duration:
-        if msvcrt.kbhit():
-            # Legge il tasto premuto
-            char = msvcrt.getch()
-            
-            # Gestione tasti speciali (frecce, F1-F12 ecc.)
-            if char in (b'\x00', b'\xe0'):
-                msvcrt.getch() # Consuma il secondo byte del tasto speciale
-                continue
-                
-            try:
-                decoded_char = char.decode('utf-8')
-                logged.append(decoded_char)
-                # Opzionale: mostra cosa stai scrivendo in tempo reale
-                # sys.stdout.write(decoded_char)
-                # sys.stdout.flush()
-            except UnicodeDecodeError:
-                pass
-                
-        time.sleep(0.01)
+    listener.stop()
     
-    print("\n--- Tempo scaduto. Output log: ---")
-    output = ''.join(logged)
-    print(output)
-    sys.stdout.flush()
+    print("\n--- Log globale acquisito: ---")
+    print(''.join(filter(None, logged)))
 
 if __name__ == "__main__":
     main()
