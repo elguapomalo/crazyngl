@@ -9,16 +9,34 @@ def main():
     
     duration = int(sys.argv[1])
     logged = []
-    start = time.time()
-
-    while time.time() - start < duration:
-        # Verifica se è stato premuto un tasto senza bloccare il ciclo
-        if msvcrt.kbhit():
-            char = msvcrt.getch().decode('utf-8', errors='ignore')
-            logged.append(char)
-        time.sleep(0.01) # Riduce il carico sulla CPU
+    print(f"--- Inizio cattura per {duration} secondi ---")
     
-    print(''.join(logged), end='')
+    start = time.time()
+    while time.time() - start < duration:
+        if msvcrt.kbhit():
+            # Legge il tasto premuto
+            char = msvcrt.getch()
+            
+            # Gestione tasti speciali (frecce, F1-F12 ecc.)
+            if char in (b'\x00', b'\xe0'):
+                msvcrt.getch() # Consuma il secondo byte del tasto speciale
+                continue
+                
+            try:
+                decoded_char = char.decode('utf-8')
+                logged.append(decoded_char)
+                # Opzionale: mostra cosa stai scrivendo in tempo reale
+                # sys.stdout.write(decoded_char)
+                # sys.stdout.flush()
+            except UnicodeDecodeError:
+                pass
+                
+        time.sleep(0.01)
+    
+    print("\n--- Tempo scaduto. Output log: ---")
+    output = ''.join(logged)
+    print(output)
+    sys.stdout.flush()
 
 if __name__ == "__main__":
     main()
