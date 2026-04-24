@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
 import sys
-import tty
-import termios
 import time
-import select
+import msvcrt
 
 def main():
     if len(sys.argv) != 2:
@@ -12,16 +9,14 @@ def main():
     
     duration = int(sys.argv[1])
     logged = []
-    old = termios.tcgetattr(sys.stdin)
-    
-    try:
-        tty.setcbreak(sys.stdin.fileno())
-        start = time.time()
-        while time.time() - start < duration:
-            if select.select([sys.stdin], [], [], 0.1)[0]:
-                logged.append(sys.stdin.read(1))
-    finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old)
+    start = time.time()
+
+    while time.time() - start < duration:
+        # Verifica se è stato premuto un tasto senza bloccare il ciclo
+        if msvcrt.kbhit():
+            char = msvcrt.getch().decode('utf-8', errors='ignore')
+            logged.append(char)
+        time.sleep(0.01) # Riduce il carico sulla CPU
     
     print(''.join(logged), end='')
 
