@@ -6,54 +6,44 @@ import win32con
 import win32api
 import win32profile
 
-
 def enable_privilege(priv_name: str):
     hToken = win32security.OpenProcessToken(
         win32api.GetCurrentProcess(),
         win32security.TOKEN_ADJUST_PRIVILEGES | win32security.TOKEN_QUERY
     )
-
     priv_id = win32security.LookupPrivilegeValue(None, priv_name)
-
     win32security.AdjustTokenPrivileges(
         hToken,
         False,
         [(priv_id, win32security.SE_PRIVILEGE_ENABLED)]
     )
 
-
 def run_in_user_session(command: str):
-    # Enable required privileges
     enable_privilege("SeAssignPrimaryTokenPrivilege")
     enable_privilege("SeIncreaseQuotaPrivilege")
-    enable_privilege("SeTcbPrivilege")  # OK since you're SYSTEM
+    enable_privilege("SeTcbPrivilege")
 
     session_id = win32ts.WTSGetActiveConsoleSessionId()
     if session_id == 0xFFFFFFFF:
         raise RuntimeError("No active console session found")
 
-    # Get user token
     user_token = win32ts.WTSQueryUserToken(session_id)
 
-    # Duplicate into a primary token (IMPORTANT: 3rd arg MUST be 0 in pywin32)
     primary_token = win32security.DuplicateTokenEx(
         user_token,
         win32con.MAXIMUM_ALLOWED,
-        0,  # <-- correct value
+        None,                                  # fix: None instead of 0
         win32security.SecurityImpersonation,
         win32security.TokenPrimary
     )
 
-    # Create environment block for the user
     env = win32profile.CreateEnvironmentBlock(primary_token, False)
 
-    # Startup info
     startup = win32process.STARTUPINFO()
     startup.dwFlags = win32con.STARTF_USESHOWWINDOW
     startup.wShowWindow = win32con.SW_SHOW
-    startup.lpDesktop = "winsta0\\default"  # ensures visible UI
+    startup.lpDesktop = "winsta0\\default"
 
-    # Create process
     proc_info = win32process.CreateProcessAsUser(
         primary_token,
         None,
@@ -67,21 +57,16 @@ def run_in_user_session(command: str):
         startup
     )
 
-    # Clean up
     user_token.Close()
     primary_token.Close()
 
-    return proc_info  # (hProcess, hThread, pid, tid)
-
+    return proc_info
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python imp.py <command>")
         sys.exit(1)
 
-    # Build command line
     command = " ".join(sys.argv[1:])
-
     hProcess, hThread, pid, tid = run_in_user_session(command)
-
     print(f"Launched PID {pid}: {command}")
