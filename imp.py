@@ -30,7 +30,7 @@ def run_in_user_session(command: str):
     primary_token = win32security.DuplicateTokenEx(
         user_token,
         win32con.TOKEN_ALL_ACCESS,
-        None,
+        0,
         win32security.SecurityImpersonation,
         win32security.TokenPrimary
     )
