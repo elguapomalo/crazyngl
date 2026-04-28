@@ -1,4 +1,5 @@
 import sys
+import pywintypes
 import win32ts
 import win32security
 import win32process
@@ -29,10 +30,13 @@ def run_in_user_session(command: str):
 
     user_token = win32ts.WTSQueryUserToken(session_id)
 
+    sa = pywintypes.SECURITY_ATTRIBUTES()
+    sa.bInheritHandle = False
+
     primary_token = win32security.DuplicateTokenEx(
         user_token,
         win32con.MAXIMUM_ALLOWED,
-        None,                                  # fix: None instead of 0
+        sa,
         win32security.SecurityImpersonation,
         win32security.TokenPrimary
     )
