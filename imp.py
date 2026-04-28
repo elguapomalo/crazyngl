@@ -1,0 +1,64 @@
+import win32ts
+import win32security
+import win32process
+import win32con
+import win32api
+
+
+def enable_privilege(priv_name: str):
+    hToken = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(),
+        win32security.TOKEN_ADJUST_PRIVILEGES | win32security.TOKEN_QUERY
+    )
+    priv_id = win32security.LookupPrivilegeValue(None, priv_name)
+    win32security.AdjustTokenPrivileges(
+        hToken, False,
+        [(priv_id, win32security.SE_PRIVILEGE_ENABLED)]
+    )
+
+
+def run_in_user_session(command: str):
+    enable_privilege("SeTcbPrivilege")
+    enable_privilege("SeAssignPrimaryTokenPrivilege")
+
+    session_id = win32ts.WTSGetActiveConsoleSessionId()
+    if session_id == 0xFFFFFFFF:
+        raise RuntimeError("No active console session found")
+
+    user_token = win32ts.WTSQueryUserToken(session_id)
+
+    primary_token = win32security.DuplicateTokenEx(
+        user_token,
+        win32con.TOKEN_ALL_ACCESS,
+        None,
+        win32security.SecurityImpersonation,
+        win32security.TokenPrimary
+    )
+
+    startup = win32process.STARTUPINFO()
+    startup.dwFlags = win32con.STARTF_USESHOWWINDOW
+    startup.wShowWindow = win32con.SW_SHOW
+
+    proc_info = win32process.CreateProcessAsUser(
+        primary_token,
+        None,
+        command,
+        None, None, False,
+        win32con.CREATE_NEW_CONSOLE,
+        None, None,
+        startup
+    )
+
+    return proc_info  # (hProcess, hThread, pid, tid)
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Usage: python impersonate.py <command>")
+        sys.exit(1)
+
+    command = " ".join(sys.argv[1:])
+    hProcess, hThread, pid, tid = run_in_user_session(command)
+    print(f"Launched PID {pid}: {command}")
