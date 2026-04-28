@@ -12,7 +12,9 @@ def enable_privilege(priv_name: str):
         win32api.GetCurrentProcess(),
         win32security.TOKEN_ADJUST_PRIVILEGES | win32security.TOKEN_QUERY
     )
+
     priv_id = win32security.LookupPrivilegeValue(None, priv_name)
+
     win32security.AdjustTokenPrivileges(
         hToken,
         False,
@@ -22,9 +24,9 @@ def enable_privilege(priv_name: str):
 
 def run_in_user_session(command: str):
     # Enable required privileges
-    enable_privilege("SeTcbPrivilege")
     enable_privilege("SeAssignPrimaryTokenPrivilege")
     enable_privilege("SeIncreaseQuotaPrivilege")
+    enable_privilege("SeTcbPrivilege")  # OK since you're SYSTEM
 
     session_id = win32ts.WTSGetActiveConsoleSessionId()
     if session_id == 0xFFFFFFFF:
@@ -33,23 +35,23 @@ def run_in_user_session(command: str):
     # Get user token
     user_token = win32ts.WTSQueryUserToken(session_id)
 
-    # Duplicate into a primary token
-    sa = win32security.SECURITY_ATTRIBUTES()
+    # Duplicate into a primary token (IMPORTANT: 3rd arg MUST be 0 in pywin32)
     primary_token = win32security.DuplicateTokenEx(
         user_token,
         win32con.MAXIMUM_ALLOWED,
-        sa,
+        0,  # <-- correct value
         win32security.SecurityImpersonation,
         win32security.TokenPrimary
     )
 
-    # Create environment for the user
+    # Create environment block for the user
     env = win32profile.CreateEnvironmentBlock(primary_token, False)
 
     # Startup info
     startup = win32process.STARTUPINFO()
     startup.dwFlags = win32con.STARTF_USESHOWWINDOW
     startup.wShowWindow = win32con.SW_SHOW
+    startup.lpDesktop = "winsta0\\default"  # ensures visible UI
 
     # Create process
     proc_info = win32process.CreateProcessAsUser(
@@ -65,7 +67,7 @@ def run_in_user_session(command: str):
         startup
     )
 
-    # Clean up handles we don't need
+    # Clean up
     user_token.Close()
     primary_token.Close()
 
@@ -77,7 +79,7 @@ if __name__ == "__main__":
         print("Usage: python imp.py <command>")
         sys.exit(1)
 
-    # Build command safely
+    # Build command line
     command = " ".join(sys.argv[1:])
 
     hProcess, hThread, pid, tid = run_in_user_session(command)
